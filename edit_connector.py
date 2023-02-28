@@ -6,6 +6,7 @@ import numpy as np
 import json
 import os
 import threading
+from PyQt5.QtWidgets import QWidget, QMainWindow
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
@@ -260,7 +261,7 @@ class VideoWidget(QtWidgets.QWidget):
         self.y_end = event.y()
 
     def mouseMoved(self, event):
-        pass
+    pass
 
     def setup_pipeline(self):
         self.pipeline = Gst.parse_launch("intervideosrc channel=v0 ! xvimagesink")
@@ -479,3 +480,4 @@ if __name__ == "__main__":
     window.show()
     sys.exit(app.exec_())
 np
+
