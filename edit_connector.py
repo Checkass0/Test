@@ -292,22 +292,31 @@ def move_annotation(annotations, annotation_idx, delta_x, delta_y):
     selected_annotations = []
 
     def on_mouse(event, x, y, flags, param):
-        global selected_annotations
+    global selected_annotations, annotations
     
-        if event == cv2.EVENT_LBUTTONDOWN:
-            for idx, annotation in enumerate(annotations):
-                if x >= annotation['left'] and x <= annotation['right'] and y >= annotation['top'] and y <= annotation['bottom']:
-                    selected_annotations.append(idx)
-                    break
-    
-        elif event == cv2.EVENT_RBUTTONDOWN:
-            # Clear the list of selected annotations
-            selected_annotations.clear()
-    
-        # Draw the selected annotations
-        for idx in selected_annotations:
-            annotation = annotations[idx]
-            cv2.rectangle(img, (annotation['left'], annotation['top']), (annotation['right'], annotation['bottom']), (0, 255, 0), 2)
+    if event == cv2.EVENT_LBUTTONDOWN:
+        for idx, annotation in enumerate(annotations):
+            if x >= annotation['left'] and x <= annotation['right'] and y >= annotation['top'] and y <= annotation['bottom']:
+                selected_annotations.append(idx)
+                break
+
+    elif event == cv2.EVENT_RBUTTONDOWN:
+        # Clear the list of selected annotations
+        selected_annotations.clear()
+
+    # Draw the selected annotations
+    for idx in selected_annotations:
+        annotation = annotations[idx]
+        cv2.rectangle(img, (annotation['left'], annotation['top']), (annotation['right'], annotation['bottom']), (0, 255, 0), 2)
+        
+    if event == cv2.EVENT_MOUSEMOVE:
+        if len(selected_annotations) > 0:
+            move_x = x - prev_x
+            move_y = y - prev_y
+            move_annotation(annotations, selected_annotations, move_x, move_y)
+
+    prev_x, prev_y = x, y
+
 
     def on_key(event, key, *args):
         if key == 27:
