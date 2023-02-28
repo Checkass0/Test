@@ -227,7 +227,7 @@ class FirstWindow(QWidget):
 
             video_output.Render(self.img)
 
-class VideoWidget(QWidget):
+class VideoWidget(QMainWindow):
     def __init__(self, parent=None):
         QWidget.__init__(self, parent=parent)
         self.video_frame = QLabel()
