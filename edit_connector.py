@@ -1,6 +1,7 @@
 import jetson.utils
 import argparse
 import sys
+import math
 import numpy as np
 import json
 import os
@@ -284,25 +285,41 @@ class VideoWidget(QtWidgets.QWidget):
 def move_annotation(annotations, annotation_idx, delta_x, delta_y):
     if isinstance(annotation_idx, int):
         annotation = annotations[annotation_idx]
-        move_annotations([annotation], delta_x, delta_y)
+        annotation['left'] += delta_x
+        annotation['right'] += delta_x
+        annotation['top'] += delta_y
+        annotation['bottom'] += delta_y
     else:
-        annotations_to_move = [annotations[idx] for idx in annotation_idx]
-        move_annotations(annotations_to_move, delta_x, delta_y)
-
+        for idx in annotation_idx:
+            annotation = annotations[idx]
+            annotation['left'] += delta_x
+            annotation['right'] += delta_x
+            annotation['top'] += delta_y
+            annotation['bottom'] += delta_y
     selected_annotations = []
 
     def on_mouse(event, x, y, flags, param):
-    global selected_annotations, annotations
-    
+    global selected_annotations, dragging_annotations, previous_x, previous_y
+
     if event == cv2.EVENT_LBUTTONDOWN:
         for idx, annotation in enumerate(annotations):
             if x >= annotation['left'] and x <= annotation['right'] and y >= annotation['top'] and y <= annotation['bottom']:
                 selected_annotations.append(idx)
+                dragging_annotations = True
+                previous_x = x
+                previous_y = y
                 break
 
-    elif event == cv2.EVENT_RBUTTONDOWN:
-        # Clear the list of selected annotations
-        selected_annotations.clear()
+    elif event == cv2.EVENT_LBUTTONUP:
+        dragging_annotations = False
+
+    elif event == cv2.EVENT_MOUSEMOVE:
+        if dragging_annotations:
+            delta_x = x - previous_x
+            delta_y = y - previous_y
+            move_annotation(annotations, selected_annotations, delta_x, delta_y)
+            previous_x = x
+            previous_y = y
 
     # Draw the selected annotations
     for idx in selected_annotations:
@@ -319,25 +336,25 @@ def move_annotation(annotations, annotation_idx, delta_x, delta_y):
 
 
     def on_key(event, key, *args):
-        if key == 27:
-            # ESC key
-            cv2.destroyAllWindows()
-            exit()
-        elif key == ord('q'):
-            # Quit editing mode
-            return False
-        elif key == ord('up'):
-            # Move the selected annotations up
-            move_annotation(annotations, selected_annotations, 0, -10)
-        elif key == ord('down'):
-            # Move the selected annotations down
-            move_annotation(annotations, selected_annotations, 0, 10)
-        elif key == ord('left'):
-            # Move the selected annotations left
-            move_annotation(annotations, selected_annotations, -10, 0)
-        elif key == ord('right'):
-            # Move the selected annotations right
-            move_annotation(annotations, selected_annotations, 10, 0)
+    if key == 27:
+        # ESC key
+        cv2.destroyAllWindows()
+        exit()
+    elif key == ord('q'):
+        # Quit editing mode
+        return False
+    elif key == ord('up'):
+        # Move the selected annotations up
+        move_annotation(annotations, selected_annotations, 0, -10)
+    elif key == ord('down'):
+        # Move the selected annotations down
+        move_annotation(annotations, selected_annotations, 0, 10)
+    elif key == ord('left'):
+        # Move the selected annotations left
+        move_annotation(annotations, selected_annotations, -10, 0)
+    elif key == ord('right'):
+        # Move the selected annotations right
+        move_annotation(annotations, selected_annotations, 10, 0)
 
 
 
@@ -461,3 +478,4 @@ if __name__ == "__main__":
 
     window.show()
     sys.exit(app.exec_())
+np
