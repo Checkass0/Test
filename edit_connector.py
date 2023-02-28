@@ -297,7 +297,11 @@ def move_annotation(annotations, annotation_idx, delta_x, delta_y):
             annotation['right'] += delta_x
             annotation['top'] += delta_y
             annotation['bottom'] += delta_y
-    selected_annotations = []
+
+def draw_annotations(img, annotations):
+    for annotation in annotations:
+        cv2.rectangle(img, (annotation['left'], annotation['top']), (annotation['right'], annotation['bottom']), (0, 255, 0), 2)
+
 
     def on_mouse(event, x, y, flags, param):
     global selected_annotations, dragging_annotations, previous_x, previous_y
@@ -357,6 +361,18 @@ def move_annotation(annotations, annotation_idx, delta_x, delta_y):
         # Move the selected annotations right
         move_annotation(annotations, selected_annotations, 10, 0)
 
+    elif key == ord('up'):
+    # Move the selected annotations up
+    move_annotation(self.annotations, self.selected_annotations, 0, -10)
+    elif key == ord('down'):
+    # Move the selected annotations down
+    move_annotation(self.annotations, self.selected_annotations, 0, 10)
+    elif key == ord('left'):
+    # Move the selected annotations left
+    move_annotation(self.annotations, self.selected_annotations, -10, 0)
+    elif key == ord('right'):
+    # Move the selected annotations right
+    move_annotation(self.annotations, self.selected_annotations, 10, 0)
 
 
 
