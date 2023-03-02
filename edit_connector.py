@@ -13,16 +13,6 @@ gi.require_version('Gst', '1.0')
 gi.require_version('GstVideo', '1.0')
 from gi.repository import Gst, GObject, GstVideo
 
-
-import cv2
-import argparse
-from jetson.utils.videoSource import videoSource
-from jetson.utils.display import display
-from jetson.utils import cudaFromNumpy, cudaToNumpy
-from jetson.inference.detectNet import detectNet
-
-
-
 parser = argparse.ArgumentParser(description = "shows camera stream and overlays the connector dimensions.\nto edit the dimensions, please edit the csv file directly.\nto reload the csv file, press reload",
                                 formatter_class=argparse.RawTextHelpFormatter)
 
@@ -228,7 +218,7 @@ class FirstWindow(QWidget):
             temp_bottom = np.append(QMainWindow.bottom, QMainWindow.bottom_temp, 0)
             temp_right = np.append(QMainWindow.right, QMainWindow.right_temp, 0)
             for idx,(left, top, right, bottom) in enumerate(zip(temp_left, temp_top, temp_right, temp_bottom)):
-                create_overlay(left, top, right, bottom, (0,255,0,255), self.img)
+                create_overlay(left, top, right, bottom, (0,0,0,255), self.img)
                 font.OverlayText(self.img, self.img.width, self.img.height, f" {idx:02} " , int(left)-10, int(top)+10, font.White)
 
             video_output.Render(self.img)
@@ -363,167 +353,6 @@ class VideoWidget(QWidget):
                     QMainWindow.bottom[idx] = self.y_end + 0.5*y_size
                     QMainWindow.selected_box = idx
                     break
-
-class BoxEditor:
-    def __init__(self, window_name, video_src, detector, boxes=[]):
-        self.window_name = window_name
-        self.video_src = video_src
-        self.detector = detector
-        self.boxes = boxes
-        
-        # Initialisiere die Mausvariablen
-        self.mouse_down = False
-        self.prev_mouse_x = 0
-        self.prev_mouse_y = 0
-        self.mouse_x = 0
-        self.mouse_y = 0
-        
-        # Erstelle das Fenster
-        cv2.namedWindow(window_name)
-        cv2.setMouseCallback(window_name, self.mouse_callback)
-        
-    def mouse_callback(self, event, x, y, flags, param):
-        # Speichere die Mausposition
-        self.mouse_x = x
-        self.mouse_y = y
-        
-        # Überprüfe, ob die linke Maustaste gedrückt wird
-        if event == cv2.EVENT_LBUTTONDOWN:
-            self.mouse_down = True
-            self.prev_mouse_x = x
-            self.prev_mouse_y = y
-        elif event == cv2.EVENT_LBUTTONUP:
-            self.mouse_down = False
-    
-    def draw_boxes(self, frame, boxes):
-        # Kopiere das Frame
-        frame_copy = frame.copy()
-        
-        # Zeichne die Bounding Boxes auf das Frame
-        for box in boxes:
-            cv2.rectangle(frame_copy, (box[0], box[1]), (box[2], box[3]), (0, 255, 0), 2)
-        
-        # Zeige das Frame mit den Bounding Boxes
-        cv2.imshow(self.window_name, frame_copy)
-    
-    def move_boxes(self):
-        # Wähle die Bounding Boxes aus, die verschoben werden sollen
-        selected_boxes = []
-        while True:
-            # Warte auf die nächste Frame
-            frame = self.video_src.Capture()
-            
-            # Zeige die Bounding Boxes auf dem Frame
-            self.draw_boxes(frame, self.boxes)
-            
-            # Zeige das Frame auf dem Bildschirm
-            cv2.imshow(self.window_name, frame)
-            
-            # Überprüfe, ob eine Taste gedrückt wird
-            key = cv2.waitKey(1) & 0xFF
-            
-            # Wenn die Eingabetaste gedrückt wird, beende die Schleife
-            if key == ord('\n'):
-                break
-                
-            # Wenn die Entfernen-Taste gedrückt wird, entferne die ausgewählten Bounding Boxes
-            if key == 8:
-                self.boxes = [box for box in self.boxes if box not in selected_boxes]
-                selected_boxes = []
-                
-            # Überprüfe, ob die linke Maustaste gedrückt wird
-            if cv2.getWindowProperty(self.window_name, cv2.WND_PROP_VISIBLE) < 1:
-                break
-            elif self.mouse_down:
-                # Wähle die Bounding Boxes aus, die den aktuellen Mauszeiger umschließen
-                curr_boxes = []
-                for box in self.boxes:
-                    x1, y1, x2, y2 = box
-                    if self.mouse_x >= x1 and self.mouse_x <= x2 and self.mouse_y >= y1 and self.mouse_y <= y2:
-
-                        curr_boxes.append(box)
-                
-                # Markiere die ausgewählten Bounding Boxes
-                for box in curr_boxes:
-                    if box not in selected_boxes:
-                        selected_boxes.append(box)
-                
-                # Verschiebe die ausgewählten Bounding Boxes
-                dx = self.mouse_x - self.prev_mouse_x
-                dy = self.mouse_y - self.prev_mouse_y
-                for i in range(len(self.boxes)):
-                    if self.boxes[i] in selected_boxes:
-                        self.boxes[i] = (
-                            self.boxes[i][0] + dx,
-                            self.boxes[i][1] + dy,
-                            self.boxes[i][2] + dx,
-                            self.boxes[i][3] + dy
-                        )
-                
-                # Speichere die Mausposition für den nächsten Frame
-                self.prev_mouse_x = self.mouse_x
-                self.prev_mouse_y = self.mouse_y
-        
-        # Beende die Bewegung der Bounding Boxes
-        self.mouse_down = False
-    
-    def run(self):
-        while True:
-            # Warte auf die nächste Frame
-            frame = self.video_src.Capture()
-            
-            # Detektiere Objekte im Frame
-            detections = self.detector.Detect(frame)
-            
-            # Extrahiere die Bounding Boxes aus den Detektionen
-            boxes = []
-            for detection in detections:
-                x1, y1, x2, y2 = detection.ROI
-                boxes.append((int(x1), int(y1), int(x2), int(y2)))
-            
-            # Füge die vom Benutzer erstellten Bounding Boxes hinzu
-            boxes.extend(self.boxes)
-            
-            # Zeige die Bounding Boxes auf dem Frame
-            self.draw_boxes(frame, boxes)
-            
-            # Überprüfe, ob eine Taste gedrückt wird
-            key = cv2.waitKey(1) & 0xFF
-            
-            # Wenn die ESC-Taste gedrückt wird, beende das Programm
-            if key == 27:
-                break
-            
-            # Wenn die Leertaste gedrückt wird, führe die Bewegung der Bounding Boxes aus
-            if key == ord(' '):
-                self.move_boxes()
-                
-            # Zeige das Frame auf dem Bildschirm
-            cv2.imshow(self.window_name, frame)
-        
-        # Schließe das Fenster
-        cv2.destroyAllWindows()
-
-
-def main():
-    # Analysiere die Eingabeparameter
-    parser = argparse.ArgumentParser(description="Edit bounding boxes")
-    parser.add_argument("input_uri", type=str, help="URI for input stream")
-    parser.add_argument("--model", type=str, default="ssd-mobilenet-v2",
-                        help="pre-trained model to load (see the list of models in the detectNet class for options)")
-    args = parser.parse_args()
-    
-    # Erstelle den Objektdetektor
-    detector = detectNet(args.model, threshold=0.5)
-    
-    # Erstelle die Videoquelle
-    video_src = videoSource(args.input_uri)
-    
-    # Erstelle den BoxEditor
-    box_editor = BoxEditor("Bounding Box Editor", video_src, detector)
-    
-    # Führe das Programm aus
-    box_editor.run()
 
 if __name__ == "__main__":
     # ask for connector name
