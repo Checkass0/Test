@@ -2,9 +2,6 @@ import jetson.utils
 import argparse
 import sys
 import numpy as np
-import pygame
-selected_rects = []
-
 import json
 import os
 import threading
